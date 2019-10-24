@@ -1,5 +1,5 @@
 use crate::simulation::trader::Traders;
-use crate::order::{Order, OrderType, TradeType, p_wise_sup, p_wise_dem};
+use crate::order::{Order, OrderType, TradeType};
 
 use std::iter;
 use std::sync::Arc;
@@ -9,13 +9,12 @@ use rand::distributions::Alphanumeric;
 
 /// Function for parsing an order into it's Json components. Workaround since
 /// Box<Fn(f64) -> f64 + Send + Sync + 'static cannot implement clone trait
-pub fn params_for_json(order: &Order) -> (String, OrderType, TradeType, f64, f64, f64) {
+pub fn params_for_json(order: &Order) -> (String, OrderType, TradeType, f64, f64) {
     return (order.trader_id.clone(),
         order.order_type.clone(),
         order.trade_type.clone(),
-        order.p_low.clone(),
-        order.p_high.clone(),
-        order.u_max.clone());
+        order.price.clone(),
+        order.quantity.clone());
 }
 
 /// A function to randomly generate update orders for existing traders within 
@@ -24,7 +23,7 @@ pub fn params_for_json(order: &Order) -> (String, OrderType, TradeType, f64, f64
 /// 'upper' is to change the probability with which an update will occur for a 
 /// given trader. Probability of update = (1 / upper), where upper > 0
 pub fn gen_rand_updates(t_struct: Arc<Traders>, upper: u32) 
--> Vec<(String, OrderType, TradeType, f64, f64, f64)> 
+-> Vec<(String, OrderType, TradeType, f64, f64)> 
 {
 		let mut rng = thread_rng();
 		// Get a lock on the HashMap 
@@ -54,7 +53,7 @@ pub fn gen_rand_updates(t_struct: Arc<Traders>, upper: u32)
 /// 'upper' is to change the probability with which an update will occur for a 
 /// given trader. Probability of update = (1 / upper), where upper > 0
 pub fn gen_rand_cancels(t_struct: Arc<Traders>, upper: u32) 
--> Vec<(String, OrderType, TradeType, f64, f64, f64)> 
+-> Vec<(String, OrderType, TradeType, f64, f64)> 
 {
 		let mut rng = thread_rng();
 		// Get a lock on the HashMap 
@@ -103,31 +102,25 @@ pub fn rand_enters(upper: u64) -> Vec<Order> {
 
 /// Generates a random Ask order of OrderType::Enter
 pub fn rand_ask_enter() -> Order {
-	let (p_l, p_h) = gen_prices();
-	let u_max = gen_u_max();
+	let (price, quantity) = gen_limit_order();			//TODOOO LOOK AT THIS AGAIN
 	Order::new(
 		gen_order_id(),
 		OrderType::Enter,
 		TradeType::Ask,
-		p_l,
-		p_h,
-		u_max,
-		p_wise_sup(p_l, p_h, u_max)
+		price,
+		quantity
 	)
 }
 
 /// Generates a random Bid order of OrderType::Enter
 pub fn rand_bid_enter() -> Order {
-	let (p_l, p_h) = gen_prices();
-	let u_max = gen_u_max();
+	let (price, quantity) = gen_limit_order();				//TODOOO LOOK AT THIS AGAIN
 	Order::new(
 		gen_order_id(),
 		OrderType::Enter,
 		TradeType::Bid,
-		p_l,
-		p_h,
-		u_max,
-		p_wise_dem(p_l, p_h, u_max),
+		price,
+		quantity
 	)
 }
 
@@ -143,12 +136,12 @@ pub fn rand_update_order(old: &Order) -> Order {
     new
 }
 
-/// Create a random pair of prices in increasing order 
-pub fn gen_prices() -> (f64, f64) {
+/// Create a random price and quantity
+pub fn gen_limit_order() -> (f64, f64) {
 	let mut rng = thread_rng();
-	let p_l: f64 = rng.gen_range(0.0, 100.0);
-	let p_h: f64 = rng.gen_range(p_l, 200.0);
-	(p_l, p_h)
+	let p: f64 = rng.gen_range(0.0, 100.0);
+	let q: f64 = rng.gen_range(0.0, 10.0);
+	(p, q)
 }
 
 /// Generate a random trader id from random ascii chars
@@ -159,12 +152,6 @@ pub fn gen_order_id() -> String {
         .take(10)
         .collect();
     id
-}
-
-/// Create a random u_max value 
-pub fn gen_u_max() -> f64 {
-	let mut rng = thread_rng();
-	rng.gen_range(0.0, 500.0)
 }
 
 #[cfg(test)]

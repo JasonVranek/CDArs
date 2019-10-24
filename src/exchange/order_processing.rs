@@ -1,5 +1,5 @@
 use tokio::net::tcp::TcpStream;
-use crate::order::{Order, OrderType, TradeType, p_wise_dem, p_wise_sup};
+use crate::order::{Order, OrderType, TradeType};
 use crate::exchange::queue::Queue;
 
 use std::sync::Arc;
@@ -40,9 +40,8 @@ pub struct JsonOrder{
 	trader_id: String,        
     order_type: String,    
     trade_type: String,  
-    p_low: f64,              
-    p_high: f64, 
-    u_max: f64,       
+    price: f64,              
+    quantity: f64, 
 }
 
 impl JsonOrder {
@@ -102,19 +101,17 @@ impl JsonOrder {
 			},
 		};
 
-		let func = match tt {
-			TradeType::Bid => p_wise_dem(typed_json.p_low, typed_json.p_high, typed_json.u_max),
-			TradeType::Ask => p_wise_sup(typed_json.p_low, typed_json.p_high, typed_json.u_max),
-		};
+		// let func = match tt {
+		// 	TradeType::Bid => p_wise_dem(typed_json.p_low, typed_json.p_high, typed_json.u_max),
+		// 	TradeType::Ask => p_wise_sup(typed_json.p_low, typed_json.p_high, typed_json.u_max),
+		// };
 
 		Some(Order::new(
 			typed_json.trader_id,
 			ot, 
 			tt, 
-			typed_json.p_low, 
-			typed_json.p_high, 
-			typed_json.u_max,
-			func,
+			typed_json.price, 
+			typed_json.quantity, 
 			))
 	}
 
@@ -135,15 +132,14 @@ impl JsonOrder {
                 "trader_id": order.trader_id.clone(),
                 "order_type": ot,
                 "trade_type": tt,
-                "p_low": order.p_low.clone(),
-                "p_high": order.p_high.clone(),
-                "u_max": order.u_max.clone(),
+                "price": order.price.clone(),
+                "quantity": order.quantity.clone(),
             })
 	}
 
-	pub fn params_to_json(order_params: (String, OrderType, TradeType, f64, f64, f64)) 
+	pub fn params_to_json(order_params: (String, OrderType, TradeType, f64, f64)) 
 	-> serde_json::Value {
-		let (t_id, ot, tt, pl, ph, u) = order_params;
+		let (t_id, ot, tt, p, q) = order_params;
 
 		let ot = match ot {
             OrderType::Enter => "enter",
@@ -160,9 +156,8 @@ impl JsonOrder {
                 "trader_id": t_id,
                 "order_type": ot,
                 "trade_type": tt,
-                "p_low": pl,
-                "p_high": ph,
-                "u_max": u,
+                "price": p,
+                "quantity": q,
             })
 	}
 }

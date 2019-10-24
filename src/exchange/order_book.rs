@@ -9,8 +9,7 @@ pub fn test_order_book_mod() {
 }
 
 /// The struct for the order books in the exchange. The purpose
-/// is to keep track of bids and asks for calculating the aggregate
-/// supply and demand to find the market clearing price. 
+/// is to keep track of bids and asks for calculating order crossings.
 /// book_type: TradeType{Bid, Ask} -> To differentiate the two order books
 /// orders: Mutex<Vec<Order>> -> Threadsafe vector to keep track of orders
 /// min_price: Mutex<f64> -> Threadsafe minimum market price for computing clearing price
@@ -34,9 +33,11 @@ impl Book {
 
     /// Adds a new order to the Book after acquiring a lock, then sorts by p_high
     pub fn add_order(&self, order: Order) -> io::Result<()> {
+		// TODODODODODODOOOoooooooooooooooooTODODODODODODOOOoooooooooooooooooTODODODODODODOOOoooooooooooooooooTODODODODODODOOOooooooooooooooooo
+		// Sort bids in descending order, asks in ascending order
     	let mut orders = self.orders.lock().expect("ERROR: Couldn't lock book to update order");
     	orders.push(order);
-    	orders.sort_by(|a, b| a.p_high.partial_cmp(&b.p_high).unwrap());
+    	orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
     	Ok(())
     }
 
