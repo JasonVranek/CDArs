@@ -31,10 +31,10 @@ impl Book {
     	}
     }
 
-    /// Adds a new order to the Book after acquiring a lock, then sorts by p_high
+    /// Adds a new order to the Book after acquiring a lock, then sorts by price
     pub fn add_order(&self, order: Order) -> io::Result<()> {
-		// TODODODODODODOOOoooooooooooooooooTODODODODODODOOOoooooooooooooooooTODODODODODODOOOoooooooooooooooooTODODODODODODOOOooooooooooooooooo
-		// Sort bids in descending order, asks in ascending order
+		// Sort bids in descending order -> best bid (highest price) at end
+		// Sort asks in ascending order -> best ask (lowest price) at end
     	let mut orders = self.orders.lock().expect("ERROR: Couldn't lock book to update order");
     	orders.push(order);
     	orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
@@ -79,6 +79,23 @@ impl Book {
 
         Ok(())
     }
+
+	// Pushes best bid/ask to end of sorted book
+	pub fn push_to_end(&self, order: Order) -> io::Result<()> {
+		let mut orders = self.orders.lock().expect("ERROR: Couldn't lock book to update order");
+    	orders.push(order);
+		Ok(())
+	}
+
+	// Pops best bid/ask from end of sorted book
+	pub fn pop_from_end(&self) -> Option<Order> {
+		let mut orders = self.orders.lock().expect("ERROR: Couldn't lock book to update order");
+    	if orders.len() > 0 {
+			let order = orders.pop();
+			return order;
+		} 
+		return None
+	}
 
     pub fn peek_id_pos(&self, trader_id: String) -> Option<usize> {
     	// Acquire the lock

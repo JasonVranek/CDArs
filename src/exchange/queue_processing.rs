@@ -53,6 +53,9 @@ impl QueueProcessor {
 	    	// add_order acquires the lock on the book before mutating
 	    	book.update_max_price(&order.price);
 	    	book.update_min_price(&order.price);
+			// Since CDA we will check if the order transacts here:
+			// if order is best bid or best ask check, else add to book in correct order
+
 	    	match book.add_order(order) {
 	    		Ok(()) => {},
 	    		Err(e) => {
