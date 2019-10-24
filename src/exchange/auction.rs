@@ -12,71 +12,9 @@ const EPSILON: f64 =  0.000_000_001;
 pub struct Auction {}
 
 impl Auction {
-	// Iterate over each order in parallel and compute
-	// the closure for each. 
-	pub fn calc_aggs(p: f64, bids: Arc<Book>, asks: Arc<Book>) -> (f64, f64) {
-		let bids = bids.orders.lock().expect("ERROR: No bids book");
-		let asks = asks.orders.lock().expect("ERROR: No asks book");
-
-		let agg_demand: f64 = bids.par_iter()
-		    .map(|order| {
-		    	if p <= order.p_low {
-		    		order.u_max
-		    	} else if p > order.p_high {
-		    		0.0
-		    	} else {
-		    		order.calculate(p)
-		    	}
-		    }).sum();
-
-		let agg_supply: f64 = asks.par_iter()
-		    .map(|order| {
-		    	if p < order.p_low {
-		    		0.0
-		    	} else if p >= order.p_high {
-		    		order.u_max
-		    	} else {
-		    		order.calculate(p)
-		    	}
-		    }).sum();
-
-		(agg_demand, agg_supply)
-	}
-
-	/// Calculates the market clearing price from the bids and asks books. Uses a 
-	/// binary search to find the intersection point between the aggregates supply and 
-	/// demand curves. 
-	pub fn bs_cross(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
-		// get_price_bounds obtains locks on the book's prices
-	    let (mut left, mut right) = Auction::get_price_bounds(Arc::clone(&bids), Arc::clone(&asks));
-	    let max_iters = 1000;
-	    let mut curr_iter = 0;
-	    println!("Min Book price: {}, Max Book price: {}", left, right);
-	    while left < right {
-	    	curr_iter += 1;
-	    	// Find a midpoint with the correct price tick precision
-	    	let index: f64 = (left + right) / 2.0;
-	    	// Calculate the aggregate supply and demand at this price
-	    	let (dem, sup) = Auction::calc_aggs(index, Arc::clone(&bids), Arc::clone(&asks));
-	    	// println!("price_index: {}, dem: {}, sup: {}", index, dem, sup);
-
-	    	if Auction::greater_than_e(&dem, &sup) {  		// dev > sup
-	    		// We are left of the crossing point
-	    		left = index;
-	    	} else if Auction::less_than_e(&dem, &sup) {	// sup > dem
-	    		// We are right of the crossing point
-	    		right = index;
-	    	} else {
-	    		println!("Found cross at: {}", index);
-	    		return Some(index);
-	    	}
-
-	    	if curr_iter == max_iters {
-	    		println!("Trouble finding cross in max iterations, got: {}", index);
-	    		return Some(index);
-	    	}
-	    }
-	    None
+	// Calculates which orders in the order book will transact at auction time.
+	pub fn frequent_batch_auction(bids: Arc<Book>, asks: Arc<Book>) -> Option<f64> {
+		unimplemented!();
 	}
 
 	/// Schedules an auction to run on an interval determined by the duration parameter in milliseconds.
@@ -90,7 +28,7 @@ impl Auction {
 	    		*state = State::Auction;
 	    	}
 	    	println!("Starting Auction @{:?}", get_time());
-	    	if let Some(cross_price) = Auction::bs_cross(Arc::clone(&bids), Arc::clone(&asks)) {
+	    	if let Some(cross_price) = Auction::frequent_batch_auction(Arc::clone(&bids), Arc::clone(&asks)) {
 	    		println!("Found Cross at @{:?} \nP = {}\n", get_time(), cross_price);
 	    	} else {
 	    		println!("Error, Cross not found\n");

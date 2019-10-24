@@ -127,7 +127,7 @@ impl Book {
     	// find the order with the max price (from sorted list):
     	let orders = self.orders.lock().unwrap();
 
-    	let new_max = orders.last().unwrap().p_high;
+    	let new_max = orders.last().unwrap().price;
 
     	// Update the book with new max price
     	let mut max_price = self.max_price.lock().unwrap();
@@ -140,7 +140,7 @@ impl Book {
     	let orders = self.orders.lock().unwrap();
 
     	// Iterates over all orders until a minimum is found
-    	let new_min = orders.iter().fold(MAX, |min, order| if order.p_low < min {order.p_low} else {min});
+    	let new_min = orders.iter().fold(MAX, |min, order| if order.price < min {order.price} else {min});
 
     	// Update the book with new min price
     	let mut min_price = self.min_price.lock().unwrap();

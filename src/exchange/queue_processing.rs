@@ -51,8 +51,8 @@ impl QueueProcessor {
 		// Spawn a new thread to process the order
 	    thread::spawn(move || {
 	    	// add_order acquires the lock on the book before mutating
-	    	book.update_max_price(&order.p_high);
-	    	book.update_min_price(&order.p_low);
+	    	book.update_max_price(&order.price);
+	    	book.update_min_price(&order.price);
 	    	match book.add_order(order) {
 	    		Ok(()) => {},
 	    		Err(e) => {
@@ -67,8 +67,7 @@ impl QueueProcessor {
 	fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
 		// update books min/max price if this overwrites current min/max OR this order contains new min/max
 	    thread::spawn(move || {
-	    	let p_high = order.p_high.clone();
-			let p_low = order.p_low.clone();
+	    	let price = order.price.clone();
 	    	// If the order is not found, bubble error up
 	    	match book.update_order(order) {
 	    		Ok(()) => {},
@@ -81,21 +80,21 @@ impl QueueProcessor {
 	    	let max_p = book.get_max_price();
 	    	let min_p = book.get_min_price();
 
-			if p_high == max_p {
+			if price == max_p {
 	    		// The order previously had the max market price
 				book.find_new_max();
-			} else if p_high > max_p {
+			} else if price > max_p {
 				// The order has a new max market price
-				book.update_max_price(&p_high);
+				book.update_max_price(&price);
 			}
 			
-			if p_low == min_p && p_low != 0.0 {
+			if price == min_p && price != 0.0 {
 				// The order previously had the min market price
 				book.find_new_min();
 				println!("Cancelling old min price");
-			} else if p_low < min_p {
+			} else if price < min_p {
 				// The order has a new min market price
-				book.update_min_price(&p_low);
+				book.update_min_price(&price);
 			}
 
 	    })
@@ -104,8 +103,7 @@ impl QueueProcessor {
 	// Cancels the order living in the Bids or Asks Book
 	fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
 	    thread::spawn(move || {
-			let p_high = order.p_high.clone();
-			let p_low = order.p_low.clone();
+			let price = order.price.clone();
 
 			// If the cancel fails bubble error up.
 			match book.cancel_order(order) {
@@ -117,10 +115,10 @@ impl QueueProcessor {
 	    	}
 
 			// update min/max if we just cancelled previous min/max
-			if p_high == book.get_max_price() {
+			if price == book.get_max_price() {
 				book.find_new_max();
 			}
-			if p_low == book.get_min_price() && p_low != 0.0 {
+			if price == book.get_min_price() && price != 0.0 {
 				book.find_new_min();
 				println!("Cancelling old min price");
 			}
