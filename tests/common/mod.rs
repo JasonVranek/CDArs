@@ -18,10 +18,8 @@ pub fn setup_bid_order() -> Order {
 		String::from("bid_id"),
 		OrderType::Enter,
 		TradeType::Bid,
-		0.0,
 		100.0,
-		500.0,
-		poly_clos_from_coef(vec![-3.0, 4.0]),
+		5.0,
 	)
 }
 
@@ -30,10 +28,8 @@ pub fn setup_ask_order() -> Order {
 		String::from("ask_id"),
 		OrderType::Enter,
 		TradeType::Ask,
-		0.0,
 		100.0,
-		500.0,
-		poly_clos_from_coef(vec![-3.0, 4.0]),
+		5.0,
 	)
 }
 
@@ -107,24 +103,20 @@ pub fn n_ask_enters(n: u32) -> Vec<Order> {
 pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
 	let mut bids = Vec::<Order>::new();
 	let mut asks = Vec::<Order>::new();
-	for i in 0..100 {
+	for i in 1..101 {
 		bids.push(Order::new(
 			gen_order_id(), 
     		OrderType::Enter, 
     		TradeType::Bid, 
     		i as f64, 
-    		100.0, 
-    		500.0,
-    		p_wise_dem(i as f64, 100.0, 500.0),
+    		5.0, 
 		));
 		asks.push(Order::new(
 			gen_order_id(), 
     		OrderType::Enter, 
     		TradeType::Ask, 
     		i as f64, 
-    		100.0, 
-    		500.0,
-    		p_wise_sup(i as f64, 100.0, 500.0),
+    		50.0, 
 		));
 
 	}
