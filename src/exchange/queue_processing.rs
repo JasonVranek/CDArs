@@ -2,6 +2,7 @@ use crate::order::{Order, OrderType, TradeType};
 use crate::exchange::queue::Queue;
 use crate::exchange::order_book::Book;
 use crate::controller::{Task, State};
+use crate::exchange::auction::{Auction};
 
 use std::thread;
 use std::thread::JoinHandle;
@@ -24,21 +25,10 @@ impl QueueProcessor {
 		// process each order based on OrderType
 		let mut handles = Vec::<JoinHandle<()>>::new();
 		for order in queue.pop_all() {
-			let handle = match order.trade_type {
-				TradeType::Bid => {
-					match order.order_type {
-						OrderType::Enter => QueueProcessor::process_enter(order, Arc::clone(&bids)),
-						OrderType::Update => QueueProcessor::process_update(order, Arc::clone(&bids)),
-	  	    			OrderType::Cancel => QueueProcessor::process_cancel(order, Arc::clone(&bids)),
-					}
-				}
-				TradeType::Ask => {
-					match order.order_type {
-						OrderType::Enter => QueueProcessor::process_enter(order, Arc::clone(&asks)),
-						OrderType::Update => QueueProcessor::process_update(order, Arc::clone(&asks)),
-	  	    			OrderType::Cancel => QueueProcessor::process_cancel(order, Arc::clone(&asks)),
-					}
-				}
+			let handle = match order.order_type {
+				OrderType::Enter => QueueProcessor::process_enter(Arc::clone(&bids), Arc::clone(&asks), order),
+				OrderType::Update => QueueProcessor::process_update(Arc::clone(&bids), Arc::clone(&asks), order),
+				OrderType::Cancel => QueueProcessor::process_cancel(Arc::clone(&bids), Arc::clone(&asks), order),
 			};
 			handles.push(handle);
 		}
@@ -46,68 +36,84 @@ impl QueueProcessor {
 	}
 
 
-	// Adds the order to the Bids or Asks Book
-	fn process_enter(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+	// Checks if the new order crosses. Modifies orders in book then calculates new max price
+	fn process_enter(bids: Arc<Book>, asks: Arc<Book>, order: Order) -> JoinHandle<()> {
 		// Spawn a new thread to process the order
 	    thread::spawn(move || {
-	    	// add_order acquires the lock on the book before mutating
-	    	book.update_max_price(&order.price);
-	    	book.update_min_price(&order.price);
 			// Since CDA we will check if the order transacts here:
-			// if order is best bid or best ask check, else add to book in correct order
-
-	    	match book.add_order(order) {
-	    		Ok(()) => {},
-	    		Err(e) => {
-	    			println!("ERROR: {}", e);
-	    			// TODO send an error response over TCP
-	    		},
-	    	}
+			match order.trade_type {
+				TradeType::Ask => {
+					// Only check for cross if this ask price is lower than best ask
+					if order.price < asks.get_min_price() {
+						// This will add the new ask to the book if it doesn't fully transact
+						Auction::calc_ask_crossing(bids, asks, order);
+					} else {
+						// We need to add the ask to the book, best price will be updated in add_order
+						asks.add_order(order).expect("Failed to add order");
+					}
+				},
+				TradeType::Bid => {
+					// Only check for cross if this bid price is higher than best bid
+					if order.price > bids.get_max_price() {
+						// This will add the new bid to the book if it doesn't fully transact
+						Auction::calc_bid_crossing(bids, asks, order);
+					} else {
+						// We need to add the ask to the book, best price will be updated in add_order
+						bids.add_order(order).expect("Failed to add order...");
+					}
+				}
+			}
 	    })
 	}
 
+	// Cancels the previous order and then enters this as a new one
 	// Updates an order in the Bids or Asks Book in it's own thread
-	fn process_update(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+	fn process_update(bids: Arc<Book>, asks: Arc<Book>, order: Order) -> JoinHandle<()> {
 		// update books min/max price if this overwrites current min/max OR this order contains new min/max
 	    thread::spawn(move || {
-	    	let price = order.price.clone();
-	    	// If the order is not found, bubble error up
-	    	match book.update_order(order) {
-	    		Ok(()) => {},
-	    		Err(e) => {
-	    			println!("ERROR: {}", e);
-	    			// TODO send an error response over TCP
-	    		}
-	    	}
-
-	    	let max_p = book.get_max_price();
-	    	let min_p = book.get_min_price();
-
-			if price == max_p {
-	    		// The order previously had the max market price
-				book.find_new_max();
-			} else if price > max_p {
-				// The order has a new max market price
-				book.update_max_price(&price);
+			match order.trade_type {
+				TradeType::Ask => {
+					// Cancel the orginal order:
+					match asks.cancel_order_by_index(&order.trader_id) {
+						Ok(()) => {},
+						Err(e) => println!("{:?}", e),
+					}
+					// Only check for cross if this ask price is lower than best ask
+					if order.price < asks.get_min_price() {
+						// This will add the new ask to the book if it doesn't fully transact
+						Auction::calc_ask_crossing(bids, asks, order);
+					} else {
+						// We need to add the ask to the book, best price will be updated in add_order
+						asks.add_order(order).expect("Failed to add order");
+					}
+				},
+				TradeType::Bid => {
+					// Cancel the orginal order:
+					match asks.cancel_order_by_index(&order.trader_id) {
+						Ok(()) => {},
+						Err(e) => println!("{:?}", e),
+					}
+					// Only check for cross if this bid price is higher than best bid
+					if order.price > bids.get_max_price() {
+						// This will add the new bid to the book if it doesn't fully transact
+						Auction::calc_bid_crossing(bids, asks, order);
+					} else {
+						// We need to add the ask to the book, best price will be updated in add_order
+						bids.add_order(order).expect("Failed to add order...");
+					}
+				}
 			}
-			
-			if price == min_p && price != 0.0 {
-				// The order previously had the min market price
-				book.find_new_min();
-				println!("Cancelling old min price");
-			} else if price < min_p {
-				// The order has a new min market price
-				book.update_min_price(&price);
-			}
-
 	    })
 	}
 
 	// Cancels the order living in the Bids or Asks Book
-	fn process_cancel(order: Order, book: Arc<Book>) -> JoinHandle<()> {
+	fn process_cancel(bids: Arc<Book>, asks: Arc<Book>, order: Order) -> JoinHandle<()> {
 	    thread::spawn(move || {
-			let price = order.price.clone();
-
+			let book = match order.trade_type {
+				TradeType::Ask => asks,
+				TradeType::Bid => bids,
+			};
+			
 			// If the cancel fails bubble error up.
 			match book.cancel_order(order) {
 	    		Ok(()) => {},
@@ -116,16 +122,6 @@ impl QueueProcessor {
 	    			// TODO send an error response over TCP
 	    		}
 	    	}
-
-			// update min/max if we just cancelled previous min/max
-			if price == book.get_max_price() {
-				book.find_new_max();
-			}
-			if price == book.get_min_price() && price != 0.0 {
-				book.find_new_min();
-				println!("Cancelling old min price");
-			}
-	    	
 	    })
 	}
 

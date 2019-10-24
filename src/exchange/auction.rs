@@ -20,7 +20,7 @@ impl Auction {
 	// A new bid will cross at best ask.price iff best ask.price ≤ new bid.price
 	// If the new order's quantity is not satisfied, the next best ask is checked.
 	pub fn calc_bid_crossing(bids: Arc<Book>, asks:Arc<Book>, mut new_bid: Order) {
-		if new_bid.price >= asks.get_max_price() {
+		if new_bid.price >= asks.get_min_price() {
 			// buying for more than best ask is asking for -> tx @ ask price
 			println!("Transaction going down...");
 			// Get the best ask from book, if there is one, else nothing to cross so add bid to book
@@ -39,7 +39,7 @@ impl Auction {
 					println!("New bid:{} transacted {} shares with best ask:{} @{}", 
 							new_bid.trader_id, new_bid.quantity, best_ask.trader_id, best_ask.price);
 					// Return the best ask to the book
-					asks.push_to_end(best_ask);
+					asks.push_to_end(best_ask).unwrap();
 				},
 				Ordering::Greater => {
 					// This new bid potentially will fill multiple asks
@@ -83,7 +83,7 @@ impl Auction {
 					println!("New ask:{} transacted {} shares with best bid:{} @{}", 
 							new_ask.trader_id, new_ask.quantity, best_bid.trader_id, best_bid.price);
 					// Return the best bid to the book
-					bids.push_to_end(best_bid);
+					bids.push_to_end(best_bid).unwrap();
 				},
 				Ordering::Greater => {
 					// This new ask potentially will fill multiple bids

@@ -33,11 +33,25 @@ impl Book {
 
     /// Adds a new order to the Book after acquiring a lock, then sorts by price
     pub fn add_order(&self, order: Order) -> io::Result<()> {
-		// Sort bids in descending order -> best bid (highest price) at end
-		// Sort asks in ascending order -> best ask (lowest price) at end
     	let mut orders = self.orders.lock().expect("ERROR: Couldn't lock book to update order");
-    	orders.push(order);
-    	orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+    	match order.trade_type {
+			// Sort bids in descending order -> best bid (highest price) at end
+			TradeType::Bid => {
+				orders.push(order);
+				orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+				// Since we have a lock it is faster to update our best prices here...
+				self.update_best_price();
+			},
+			// Sort asks in ascending order -> best ask (lowest price) at end
+			TradeType::Ask => {
+				orders.push(order);
+    			orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
+				orders.reverse();
+				// Since we have a lock it is faster to update our best prices here...
+				self.update_best_price();
+			}
+		}
+		
     	Ok(())
     }
 
@@ -77,8 +91,30 @@ impl Book {
         	return Err("ERROR: order not found to cancel");
         }
 
+		// Update the best price 
+		self.update_best_price();
+
         Ok(())
     }
+
+	pub fn cancel_order_by_index(&self, id: &str) -> Result<(), &'static str> {
+		// Acquire the lock
+        let mut orders = self.orders.lock().expect("couldn't acquire lock cancelling order");
+        // Search for existing order's index
+        let order_index: Option<usize> = orders.iter().position(|o| &o.trader_id == &id);
+
+		if let Some(i) = order_index {
+        	orders.remove(i);
+        } else {
+        	println!("ERROR: order not found to cancel: {:?}", id);
+        	return Err("ERROR: order not found to cancel");
+        }
+
+		// Update the best price 
+		self.update_best_price();
+
+        Ok(())
+	}
 
 	// Pushes best bid/ask to end of sorted book
 	pub fn push_to_end(&self, order: Order) -> io::Result<()> {
@@ -109,6 +145,21 @@ impl Book {
     	let orders = self.orders.lock().unwrap();
     	orders.len()
     }
+
+	/// Atomically updates Book's best bid/ask
+	pub fn update_best_price(&self) {
+		let orders = self.orders.lock().expect("couldn't acquire lock cancelling order");
+		match self.book_type {
+			TradeType::Bid => {
+				let mut max_p = self.max_price.lock().unwrap();
+				*max_p = orders.last().expect("error getting last").price;
+			},
+			TradeType::Ask => {
+				let mut min_p = self.min_price.lock().unwrap();
+				*min_p = orders.last().expect("error getting last").price;
+			}
+		}
+	}
 
     /// Atomically updates the Book's max price
     pub fn update_max_price(&self, p_high: &f64) {
