@@ -124,6 +124,76 @@ pub fn setup_orders() -> (Vec<Order>, Vec<Order>) {
 	(bids, asks)
 }
 
+// N Bids, 2 Asks
+pub fn setup_ask_cross_orders(num_bids: usize) -> (Vec<Order>, Vec<Order>) {
+	let mut bids = Vec::<Order>::new();
+	let mut asks = Vec::<Order>::new();
+	for i in 1..num_bids + 1 {
+		bids.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Bid, 
+    		i as f64, 
+    		5.0, 
+		));
+	}
+
+	// Essentially a market order
+	asks.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Ask, 
+    		0.0, 
+    		50.0, 
+		));
+
+	// An order that won't transact
+	asks.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Ask, 
+    		num_bids as f64 * 1000.0, 
+    		50.0, 
+		));	
+
+	(bids, asks)
+}
+
+// 2 Bids, N Asks
+pub fn setup_bid_cross_orders(num_asks: usize) -> (Vec<Order>, Vec<Order>) {
+	let mut bids = Vec::<Order>::new();
+	let mut asks = Vec::<Order>::new();
+	for i in 1..num_asks + 1 {
+		asks.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Ask, 
+    		50.0 + i as f64, 
+    		5.0, 
+		));
+	}
+
+	// Essentially a market order
+	bids.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Bid, 
+    		num_asks as f64 * 1000.0, 
+    		50.0, 
+		));
+
+	// An order that won't transact
+	bids.push(Order::new(
+			gen_order_id(), 
+    		OrderType::Enter, 
+    		TradeType::Bid, 
+    		0.0, 
+    		50.0, 
+		));	
+
+	(bids, asks)
+}
+
 
 
 

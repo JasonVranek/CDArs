@@ -62,22 +62,20 @@ fn test_queue_pop_all() {
 }
 
 #[test]
-fn test_process_queue() {
+fn test_ask_transaction() {
 	// Setup queue and order books
 	let queue = Arc::new(common::setup_queue());
 	let bids_book = Arc::new(common::setup_bids_book());
 	let asks_book = Arc::new(common::setup_asks_book());
 	
 	// Setup bids and asks
-	let (bids, asks) = common::setup_orders();
+	let num_bids: usize = 100;
+	let (bids, asks) = common::setup_ask_cross_orders(num_bids);
 	let mut handles = Vec::new();
 
-	// Send all the orders in parallel 
+	// Send all the bid orders in parallel 
 	for bid in bids {
 		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
-	}
-	for ask in asks {
-		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
 	// Wait for the threads to finish
@@ -85,48 +83,67 @@ fn test_process_queue() {
 		h.join().unwrap();
 	}
 
-	// Process all of the orders in the queue
-	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
+	// Process all of the bid orders in the queue
+	let mut handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
 	for h in handles {
 		h.join().unwrap();
+	}						
+
+	// There should be num_bids bids in the book, with max price num_bids and quantity 5.0
+	assert_eq!(bids_book.len(), num_bids);
+	let mut b_max_price = bids_book.get_max_price();
+	assert_eq!(b_max_price, num_bids as f64);
+
+	let mut handles = Vec::new();
+	// Send two asks orders
+	for ask in asks {
+		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
 
-	assert_eq!(bids_book.len(), 100);
-	assert_eq!(asks_book.len(), 100);
+	for h in handles {
+		h.join().unwrap();
+	}
 
-	let b_max_price = bids_book.get_max_price();
-	let b_min_price = bids_book.get_min_price();
-	let a_max_price = asks_book.get_max_price();
+	// Process the new ask orders
+	let mut handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+	
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Only one ask should cross and fill, other will remain
+	assert_eq!(asks_book.len(), 1);
+
+	// The filled ask had 10x quantity as the bids so should have filled 10 bids
+	assert_eq!(bids_book.len(), num_bids - 10);
+	b_max_price = bids_book.get_max_price();
+
 	let a_min_price = asks_book.get_min_price();
+	assert_eq!(b_max_price, num_bids as f64 - 10.0);
 
-	assert_eq!(b_max_price, 100.0);
-	//assert_eq!(b_min_price, 0.0);					/// this will fail now
-	assert_eq!(a_max_price, 100.0);
-	//assert_eq!(a_min_price, 0.0);
-
-	let (min, max) = Auction::get_price_bounds(Arc::clone(&bids_book), Arc::clone(&asks_book));
-	//assert_eq!(min, 0.0);
-	assert_eq!(max, 100.0);
-
+	// Min price set by remaining ask
+	assert_eq!(a_min_price, num_bids as f64 * 1000.0)
 }
 
+
 #[test]
-pub fn test_find_crossing_price() {
-    let queue = Arc::new(common::setup_queue());
+fn test_bid_transaction() {
+	// Setup queue and order books
+	let queue = Arc::new(common::setup_queue());
 	let bids_book = Arc::new(common::setup_bids_book());
 	let asks_book = Arc::new(common::setup_asks_book());
 	
 	// Setup bids and asks
-	let (bids, asks) = common::setup_orders();
+	let num_asks: usize = 100;
+	let (bids, asks) = common::setup_bid_cross_orders(num_asks);
 	let mut handles = Vec::new();
 
-	// Send all the orders in parallel 
-	for bid in bids {
-		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
-	}
+	// Send all the ask orders in parallel 
 	for ask in asks {
 		handles.push(OrderProcessor::conc_recv_order(ask, Arc::clone(&queue)));
 	}
@@ -136,21 +153,61 @@ pub fn test_find_crossing_price() {
 		h.join().unwrap();
 	}
 
-	// Process all of the orders in the queue
-	let handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
+	// Process all of the bid orders in the queue
+	let mut handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
 							Arc::clone(&bids_book),
 							Arc::clone(&asks_book));
 
 	for h in handles {
 		h.join().unwrap();
+	}						
+
+	// There should be num_asks asks in the book, with min price 50 -> 50 + num_asks and quantity 5.0
+	assert_eq!(asks_book.len(), num_asks);
+	let mut a_min_price = asks_book.get_min_price();
+	assert_eq!(a_min_price, 51.0);
+
+	let mut handles = Vec::new();
+	// Send two bid orders
+	for bid in bids {
+		handles.push(OrderProcessor::conc_recv_order(bid, Arc::clone(&queue)));
 	}
 
-	assert_eq!(bids_book.len(), 100);
-	assert_eq!(asks_book.len(), 100);
+	for h in handles {
+		h.join().unwrap();
+	}
 
-	let cross_price = Auction::frequent_batch_auction(Arc::clone(&bids_book), Arc::clone(&asks_book)).unwrap();
-	assert!(Auction::equal_e(&cross_price, &81.09048166081236));
+	// Process the new ask orders
+	let mut handles = QueueProcessor::conc_process_order_queue(Arc::clone(&queue), 
+							Arc::clone(&bids_book),
+							Arc::clone(&asks_book));
+	
+	for h in handles {
+		h.join().unwrap();
+	}
+
+	// Only one bid should cross and fill, other will remain
+	assert_eq!(bids_book.len(), 1);
+
+	// The filled bid had 10x quantity as the asks so should have filled 10 asks
+	assert_eq!(asks_book.len(), num_asks - 10);
+	a_min_price = asks_book.get_min_price();
+	assert_eq!(a_min_price, 61.0);
+
+	// Max price set by remaining bid
+	let b_max_price = bids_book.get_max_price();
+	assert_eq!(b_max_price, 0.0)
 }
+
+
+
+
+
+
+
+
+
+
 
 
 #[test]

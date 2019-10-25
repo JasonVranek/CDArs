@@ -164,6 +164,10 @@ impl Book {
 		}
 	}
 
+	pub fn peek_best_price(&self) -> f64 {
+		self.orders.lock().unwrap().last().unwrap().price
+	}
+
     /// Atomically updates the Book's max price
     pub fn update_max_price(&self, p_high: &f64) {
 		let mut max_price = self.max_price.lock().unwrap();

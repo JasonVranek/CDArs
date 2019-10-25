@@ -46,6 +46,13 @@ impl Auction {
 					new_bid.quantity -= best_ask.quantity;
 					println!("New bid:{} transacted {} shares with best ask:{} @{}, clearing best ask from book", 
 							new_bid.trader_id, best_ask.quantity, best_ask.trader_id, best_ask.price);
+					
+					// Update the best ask price 
+					let new_best_price = asks.peek_best_price();
+					asks.update_best_price(new_best_price);
+
+					// Don't return the bid to the book
+					
 					// Recursively check if new bid will fill more orders:
 					Auction::calc_bid_crossing(bids, asks, new_bid);
 				},
@@ -53,6 +60,12 @@ impl Auction {
 					// new bid clears the best ask removing it from book
 					println!("New bid:{} transacted {} shares with best ask:{} @{}, clearing best ask from book", 
 							new_bid.trader_id, new_bid.quantity, best_ask.trader_id, best_ask.price);
+
+					// Update the best ask price 
+					let new_best_price = asks.peek_best_price();
+					asks.update_best_price(new_best_price);
+
+					// Don't return the bid to the book
 				}
 			}  
 		} else {
@@ -90,6 +103,13 @@ impl Auction {
 					new_ask.quantity -= best_bid.quantity;
 					println!("New ask:{} transacted {} shares with best bid:{} @{}, clearing best bid from book", 
 							new_ask.trader_id, best_bid.quantity, best_bid.trader_id, best_bid.price);
+					
+					// Update the best bid price 
+					let new_best_price = bids.peek_best_price();
+					bids.update_best_price(new_best_price);
+
+					// Don't return the bid to the book
+					
 					// Recursively check if new ask will fill more orders:
 					Auction::calc_ask_crossing(bids, asks, new_ask);
 				},
@@ -97,6 +117,12 @@ impl Auction {
 					// new ask clears the best bid removing it from book
 					println!("New ask:{} transacted {} shares with best bid:{} @{}, clearing best bid from book", 
 							new_ask.trader_id, new_ask.quantity, best_bid.trader_id, best_bid.price);
+					
+					// Update the best bid price 
+					let new_best_price = bids.peek_best_price();
+					bids.update_best_price(new_best_price);
+
+					// Don't return the bid ot the book
 				}
 			}  
 		} else {
