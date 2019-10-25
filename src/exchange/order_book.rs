@@ -46,8 +46,8 @@ impl Book {
 			// Sort asks in ascending order -> best ask (lowest price) at end
 			TradeType::Ask => {
 				orders.push(order);
-    			orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-				orders.reverse();
+				// Reverse a and b to get in ascending order
+    			orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap().reverse());
 				// Update best price once book is sorted
 				let best_price = orders.last().unwrap().price;
 				self.update_best_price(best_price);

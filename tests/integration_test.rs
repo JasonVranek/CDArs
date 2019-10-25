@@ -5,6 +5,7 @@ use flow_rs::exchange::order_processing::*;
 use flow_rs::order::*;
 use flow_rs::exchange::auction::Auction;
 use std::sync::Arc;
+use rand::{Rng, thread_rng};
 
 // Include the common module for setting up state for tests
 mod common;
@@ -69,7 +70,8 @@ fn test_ask_transaction() {
 	let asks_book = Arc::new(common::setup_asks_book());
 	
 	// Setup bids and asks
-	let num_bids: usize = 100;
+	let mut rng = thread_rng();
+	let num_bids: usize = rng.gen_range(0, 1000) as usize;
 	let (bids, asks) = common::setup_ask_cross_orders(num_bids);
 	let mut handles = Vec::new();
 
@@ -139,7 +141,8 @@ fn test_bid_transaction() {
 	let asks_book = Arc::new(common::setup_asks_book());
 	
 	// Setup bids and asks
-	let num_asks: usize = 100;
+	let mut rng = thread_rng();
+	let num_asks = rng.gen_range(0, 1000) as usize;
 	let (bids, asks) = common::setup_bid_cross_orders(num_asks);
 	let mut handles = Vec::new();
 
@@ -198,16 +201,6 @@ fn test_bid_transaction() {
 	let b_max_price = bids_book.get_max_price();
 	assert_eq!(b_max_price, 0.0)
 }
-
-
-
-
-
-
-
-
-
-
 
 
 #[test]
