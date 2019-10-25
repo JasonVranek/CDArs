@@ -74,30 +74,36 @@ impl QueueProcessor {
 			match order.trade_type {
 				TradeType::Ask => {
 					// Cancel the orginal order:
+					println!("Cancelling!");
 					match asks.cancel_order_by_id(&order.trader_id) {
 						Ok(()) => {},
 						Err(e) => println!("{:?}", e),
 					}
 					// Only check for cross if this ask price is lower than best ask
 					if order.price < asks.get_min_price() {
+						println!("Gonna auction!");
 						// This will add the new ask to the book if it doesn't fully transact
 						Auction::calc_ask_crossing(bids, asks, order);
 					} else {
+						println!("Adding to ask book");
 						// We need to add the ask to the book, best price will be updated in add_order
 						asks.add_order(order).expect("Failed to add order");
 					}
 				},
 				TradeType::Bid => {
 					// Cancel the orginal order:
-					match asks.cancel_order_by_id(&order.trader_id) {
+					println!("Cancelling!");
+					match bids.cancel_order_by_id(&order.trader_id) {
 						Ok(()) => {},
 						Err(e) => println!("{:?}", e),
 					}
 					// Only check for cross if this bid price is higher than best bid
 					if order.price > bids.get_max_price() {
+						println!("Gonna auction!");
 						// This will add the new bid to the book if it doesn't fully transact
 						Auction::calc_bid_crossing(bids, asks, order);
 					} else {
+						println!("Adding to ask book");
 						// We need to add the ask to the book, best price will be updated in add_order
 						bids.add_order(order).expect("Failed to add order...");
 					}

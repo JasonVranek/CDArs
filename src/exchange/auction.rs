@@ -32,14 +32,14 @@ impl Auction {
 				}
 			};
 			// Modify quantities of best ask and new bid
-			match new_bid.quantity.partial_cmp(&best_ask.quantity).unwrap() {
+			match new_bid.quantity.partial_cmp(&best_ask.quantity).expect("bad cmp") {
 				Ordering::Less => {
 					// This new bid will be satisfied and not be added to the book
 					best_ask.quantity -= new_bid.quantity;
 					println!("New bid:{} transacted {} shares with best ask:{} @{}", 
 							new_bid.trader_id, new_bid.quantity, best_ask.trader_id, best_ask.price);
 					// Return the best ask to the book
-					asks.push_to_end(best_ask).unwrap();
+					asks.push_to_end(best_ask).expect("couldn't push");
 				},
 				Ordering::Greater => {
 					// This new bid potentially will fill multiple asks
@@ -89,14 +89,14 @@ impl Auction {
 					return
 				}
 			};
-			match new_ask.quantity.partial_cmp(&best_bid.quantity).unwrap() {
+			match new_ask.quantity.partial_cmp(&best_bid.quantity).expect("bad cmp") {
 				Ordering::Less => {
 					// This new ask will be satisfied and not be added to the book
 					best_bid.quantity -= new_ask.quantity;
 					println!("New ask:{} transacted {} shares with best bid:{} @{}", 
 							new_ask.trader_id, new_ask.quantity, best_bid.trader_id, best_bid.price);
 					// Return the best bid to the book
-					bids.push_to_end(best_bid).unwrap();
+					bids.push_to_end(best_bid).expect("bad push");
 				},
 				Ordering::Greater => {
 					// This new ask potentially will fill multiple bids
