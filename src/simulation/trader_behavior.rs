@@ -7,8 +7,7 @@ use rand::{Rng, thread_rng};
 use rand::distributions::Alphanumeric;
 
 
-/// Function for parsing an order into it's Json components. Workaround since
-/// Box<Fn(f64) -> f64 + Send + Sync + 'static cannot implement clone trait
+/// Function for parsing an order into it's Json components. 
 pub fn params_for_json(order: &Order) -> (String, OrderType, TradeType, f64, f64) {
     return (order.trader_id.clone(),
         order.order_type.clone(),
@@ -139,7 +138,7 @@ pub fn rand_update_order(old: &Order) -> Order {
 /// Create a random price and quantity
 pub fn gen_limit_order() -> (f64, f64) {
 	let mut rng = thread_rng();
-	let p: f64 = rng.gen_range(0.0, 100.0);
+	let p: f64 = rng.gen_range(90.0, 110.0);
 	let q: f64 = rng.gen_range(0.0, 10.0);
 	(p, q)
 }

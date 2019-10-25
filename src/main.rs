@@ -19,14 +19,14 @@ fn main() {
 	let mut controller = Controller::new();
     
 	// create a task run an auction every batch_interval (milliseconds)
-	let batch_interval = 3000;
-	let auction_task = Auction::async_auction_task(Arc::clone(&bids_book), 
-		                          Arc::clone(&asks_book), 
-		                          Arc::clone(&state), batch_interval);
-	controller.push(auction_task);
+	// let batch_interval = 3000;
+	// let auction_task = Auction::async_auction_task(Arc::clone(&bids_book), 
+	// 	                          Arc::clone(&asks_book), 
+	// 	                          Arc::clone(&state), batch_interval);
+	// controller.push(auction_task);
 
 	// create a task that processes order queue every queue_interval (milliseconds)
-	let queue_interval = 100;
+	let queue_interval = 10;
 	let queue_task = QueueProcessor::async_queue_task(Arc::clone(&queue), 
 		                                             Arc::clone(&bids_book), 
 		                                             Arc::clone(&asks_book),

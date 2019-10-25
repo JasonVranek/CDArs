@@ -164,8 +164,12 @@ impl Book {
 		}
 	}
 
-	pub fn peek_best_price(&self) -> f64 {
-		self.orders.lock().unwrap().last().unwrap().price
+	pub fn peek_best_price(&self) -> Option<f64> {
+		let orders = self.orders.lock().unwrap();
+		if orders.len() > 0 {
+			return Some(orders.last().expect("Couldn't peek best price").price);
+		}
+		None
 	}
 
     /// Atomically updates the Book's max price
@@ -186,13 +190,13 @@ impl Book {
 
     /// Returns the Book's min price
     pub fn get_min_price(&self) -> f64 {
-    	let price = self.min_price.lock().unwrap();
+    	let price = self.min_price.lock().expect("Error getting min price");
     	price.clone() as f64
     }
 
     /// Returns the Book's max price
     pub fn get_max_price(&self) -> f64 {
-    	let price = self.max_price.lock().unwrap();
+    	let price = self.max_price.lock().expect("Error getting max price");
     	price.clone() as f64
     }
 

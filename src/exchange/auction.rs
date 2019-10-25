@@ -10,6 +10,8 @@ use crate::utility::get_time;
 
 
 const EPSILON: f64 =  0.000_000_001;
+const MAX_PRICE: f64 = 999_999_999.0;
+const MIN_PRICE: f64 = 0.0;
 
 pub struct Auction {}
 
@@ -22,7 +24,6 @@ impl Auction {
 	pub fn calc_bid_crossing(bids: Arc<Book>, asks:Arc<Book>, mut new_bid: Order) {
 		if new_bid.price >= asks.get_min_price() {
 			// buying for more than best ask is asking for -> tx @ ask price
-			println!("Transaction going down...");
 			// Get the best ask from book, if there is one, else nothing to cross so add bid to book
 			let mut best_ask = match asks.pop_from_end() {
 				Some(order) => order,
@@ -42,15 +43,24 @@ impl Auction {
 					asks.push_to_end(best_ask).expect("couldn't push");
 				},
 				Ordering::Greater => {
-					// This new bid potentially will fill multiple asks
+					// This new bid potentially will cross with multiple asks
 					new_bid.quantity -= best_ask.quantity;
 					println!("New bid:{} transacted {} shares with best ask:{} @{}, clearing best ask from book", 
 							new_bid.trader_id, best_ask.quantity, best_ask.trader_id, best_ask.price);
 					
 					// Update the best ask price 
-					let new_best_price = asks.peek_best_price();
-					asks.update_best_price(new_best_price);
-
+					match asks.peek_best_price() {
+						Some(price) => {
+							// There are more asks in the book
+							asks.update_best_price(price);
+						},
+						None => {
+							// No more asks in the book, need to add this bid to book, set default best ask price
+							asks.update_best_price(MAX_PRICE);
+							bids.add_order(new_bid).expect("Failed to add bid to book...");
+							return
+						}
+					}
 					// Don't return the bid to the book
 					
 					// Recursively check if new bid will fill more orders:
@@ -62,9 +72,16 @@ impl Auction {
 							new_bid.trader_id, new_bid.quantity, best_ask.trader_id, best_ask.price);
 
 					// Update the best ask price 
-					let new_best_price = asks.peek_best_price();
-					asks.update_best_price(new_best_price);
-
+					match asks.peek_best_price() {
+						Some(price) => {
+							// There are more asks in the book
+							asks.update_best_price(price);
+						},
+						None => {
+							// No more asks in the book, set default best ask price
+							asks.update_best_price(MAX_PRICE);
+						}
+					}
 					// Don't return the bid to the book
 				}
 			}  
@@ -80,7 +97,6 @@ impl Auction {
 	pub fn calc_ask_crossing(bids: Arc<Book>, asks:Arc<Book>, mut new_ask: Order) {
 		if new_ask.price <= bids.get_max_price() {
 			// asking for less than best bid willing to pay -> tx @ bid price
-			println!("Transaction going down...");
 			// Modify quantities of best bid and this new ask
 			let mut best_bid = match bids.pop_from_end() {
 				Some(order) => order,
@@ -99,17 +115,24 @@ impl Auction {
 					bids.push_to_end(best_bid).expect("bad push");
 				},
 				Ordering::Greater => {
-					// This new ask potentially will fill multiple bids
+					// This new ask potentially will cross with multiple bids
 					new_ask.quantity -= best_bid.quantity;
 					println!("New ask:{} transacted {} shares with best bid:{} @{}, clearing best bid from book", 
 							new_ask.trader_id, best_bid.quantity, best_bid.trader_id, best_bid.price);
 					
 					// Update the best bid price 
-					let new_best_price = bids.peek_best_price();
-					bids.update_best_price(new_best_price);
-
-					// Don't return the bid to the book
-					
+					match bids.peek_best_price() {
+						Some(price) => {
+							// There are more asks in the book
+							bids.update_best_price(price);
+						},
+						None => {
+							// No more bids in the book, need to add this ask to book, set default best bid price
+							bids.update_best_price(MIN_PRICE);
+							asks.add_order(new_ask).expect("Failed to add ask to book...");
+							return
+						}
+					}
 					// Recursively check if new ask will fill more orders:
 					Auction::calc_ask_crossing(bids, asks, new_ask);
 				},
@@ -119,9 +142,16 @@ impl Auction {
 							new_ask.trader_id, new_ask.quantity, best_bid.trader_id, best_bid.price);
 					
 					// Update the best bid price 
-					let new_best_price = bids.peek_best_price();
-					bids.update_best_price(new_best_price);
-
+					match bids.peek_best_price() {
+						Some(price) => {
+							// There are more asks in the book
+							bids.update_best_price(price);
+						},
+						None => {
+							// No more bids in the book, need to add this ask to book, set default best bid price
+							bids.update_best_price(MIN_PRICE);
+						}
+					}
 					// Don't return the bid ot the book
 				}
 			}  

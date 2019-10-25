@@ -25,16 +25,16 @@ pub fn main() {
 
 
     // Establish the async tasks to repeatedly send orders over websocket
-    env_logger::init();
-    let ws_address: &'static str = "ws://127.0.0.1:3015";
+    // env_logger::init();
+    // let ws_address: &'static str = "ws://127.0.0.1:3015";
 
-    let ws_arrivals = RandBehavior::ws_arrival_interval(Arc::clone(&traders), 500, &ws_address); 
-    let ws_updates = RandBehavior::ws_update_interval(Arc::clone(&traders), 1000, &ws_address);
-    let ws_cancels = RandBehavior::ws_cancel_interval(Arc::clone(&traders), 2000, &ws_address);
+    // let ws_arrivals = RandBehavior::ws_arrival_interval(Arc::clone(&traders), 500, &ws_address); 
+    // let ws_updates = RandBehavior::ws_update_interval(Arc::clone(&traders), 1000, &ws_address);
+    // let ws_cancels = RandBehavior::ws_cancel_interval(Arc::clone(&traders), 2000, &ws_address);
 
-    controller.push(ws_arrivals);
-    controller.push(ws_updates);
-    controller.push(ws_cancels);
+    // controller.push(ws_arrivals);
+    // controller.push(ws_updates);
+    // controller.push(ws_cancels);
 
     // Start the controller which will asynchronously dispatch the git push
     controller.run();
