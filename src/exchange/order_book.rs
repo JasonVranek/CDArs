@@ -39,16 +39,18 @@ impl Book {
 			TradeType::Bid => {
 				orders.push(order);
 				orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
-				// Since we have a lock it is faster to update our best prices here...
-				self.update_best_price();
+				// Update best price once book is sorted
+				let best_price = orders.last().unwrap().price;
+				self.update_best_price(best_price);
 			},
 			// Sort asks in ascending order -> best ask (lowest price) at end
 			TradeType::Ask => {
 				orders.push(order);
     			orders.sort_by(|a, b| a.price.partial_cmp(&b.price).unwrap());
 				orders.reverse();
-				// Since we have a lock it is faster to update our best prices here...
-				self.update_best_price();
+				// Update best price once book is sorted
+				let best_price = orders.last().unwrap().price;
+				self.update_best_price(best_price);
 			}
 		}
 		
@@ -92,12 +94,13 @@ impl Book {
         }
 
 		// Update the best price 
-		self.update_best_price();
+		let best_price = orders.last().unwrap().price;
+		self.update_best_price(best_price);
 
         Ok(())
     }
 
-	pub fn cancel_order_by_index(&self, id: &str) -> Result<(), &'static str> {
+	pub fn cancel_order_by_id(&self, id: &str) -> Result<(), &'static str> {
 		// Acquire the lock
         let mut orders = self.orders.lock().expect("couldn't acquire lock cancelling order");
         // Search for existing order's index
@@ -111,7 +114,8 @@ impl Book {
         }
 
 		// Update the best price 
-		self.update_best_price();
+		let best_price = orders.last().unwrap().price;
+		self.update_best_price(best_price);
 
         Ok(())
 	}
@@ -147,16 +151,15 @@ impl Book {
     }
 
 	/// Atomically updates Book's best bid/ask
-	pub fn update_best_price(&self) {
-		let orders = self.orders.lock().expect("couldn't acquire lock cancelling order");
+	pub fn update_best_price(&self, price: f64) {
 		match self.book_type {
 			TradeType::Bid => {
 				let mut max_p = self.max_price.lock().unwrap();
-				*max_p = orders.last().expect("error getting last").price;
+				*max_p = price;
 			},
 			TradeType::Ask => {
 				let mut min_p = self.min_price.lock().unwrap();
-				*min_p = orders.last().expect("error getting last").price;
+				*min_p = price;
 			}
 		}
 	}
@@ -248,7 +251,6 @@ mod tests {
 					let mut max_price = book.max_price.lock().unwrap();
 					// dereference the mutex to modify
 					*max_price += 5.0;
-					// assert_eq!(*max_price, 5.0);
 				});
 				handles.push(handle);
 			}

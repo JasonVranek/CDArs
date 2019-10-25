@@ -74,7 +74,7 @@ impl QueueProcessor {
 			match order.trade_type {
 				TradeType::Ask => {
 					// Cancel the orginal order:
-					match asks.cancel_order_by_index(&order.trader_id) {
+					match asks.cancel_order_by_id(&order.trader_id) {
 						Ok(()) => {},
 						Err(e) => println!("{:?}", e),
 					}
@@ -89,7 +89,7 @@ impl QueueProcessor {
 				},
 				TradeType::Bid => {
 					// Cancel the orginal order:
-					match asks.cancel_order_by_index(&order.trader_id) {
+					match asks.cancel_order_by_id(&order.trader_id) {
 						Ok(()) => {},
 						Err(e) => println!("{:?}", e),
 					}
@@ -113,7 +113,7 @@ impl QueueProcessor {
 				TradeType::Ask => asks,
 				TradeType::Bid => bids,
 			};
-			
+
 			// If the cancel fails bubble error up.
 			match book.cancel_order(order) {
 	    		Ok(()) => {},
